@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>評分系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', 'PingFang TC', '微軟正黑體', sans-serif; background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%); overflow-y: scroll; }
+        .glass-card { background: rgba(255, 255, 255, 0.25); -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.18); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2); border-radius: 1rem; }
+        .glass-input { background: rgba(255, 255, 255, 0.15) !important; -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); border: 1px solid rgba(255, 255, 255, 0.1) !important; color: #1f2937; }
+        .glass-input::placeholder { color: #6b7280; }
+        .glass-input:focus { background: rgba(255, 255, 255, 0.25) !important; box-shadow: 0 0 0 2px rgba(101, 166, 255, 0.5) !important; }
+        .action-button { background: rgba(101, 166, 255, 0.7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid rgba(101, 166, 255, 0.2); color: #ffffff; transition: all 0.3s ease; }
+        .action-button:hover { background: rgba(101, 166, 255, 0.9); box-shadow: 0 4px 20px 0 rgba(101, 166, 255, 0.3); }
+        .save-btn:disabled { background: rgba(156, 163, 175, 0.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid rgba(156, 163, 175, 0.1); cursor: not-allowed; box-shadow: none; }
+        .loader { border-top-color: #ffffff; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .toast { animation: fadeInOut 4s ease-in-out; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+        @keyframes fadeInOut { 0%, 100% { opacity: 0; transform: translateY(-20px); } 10%, 90% { opacity: 1; transform: translateY(0); } }
+        .invalid-score { border-color: #ef4444 !important; box-shadow: 0 0 0 2px #ef4444 !important; }
+        h1, h3, p, label, th, td, button, span, div { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+        @media (max-width: 768px) {
+            #admin-summary-table thead { display: none; }
+            #admin-summary-table, #admin-summary-table tbody, #admin-summary-table tr, #admin-summary-table td { display: block; width: 100%; }
+            #admin-summary-table tr { margin-bottom: 1rem; border-radius: 1rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
+            #admin-summary-table td { padding-left: 50%; text-align: right; position: relative; padding-top: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+            #admin-summary-table td:last-child { border-bottom: 0; }
+            #admin-summary-table td::before { content: attr(data-label); position: absolute; left: 0.75rem; width: 45%; padding-right: 0.5rem; white-space: nowrap; text-align: left; font-weight: bold; color: #374151; }
+        }
+    </style>
+</head>
+<body class="flex items-start sm:items-center justify-center min-h-screen p-4">
+
+    <div id="app" class="w-full max-w-6xl mx-auto">
+
+        <!-- 驗證畫面 -->
+        <div id="login-view" class="glass-card p-8 text-center max-w-md mx-auto">
+            <h1 class="text-4xl font-bold text-gray-800 mb-6">評分系統</h1>
+            <p class="text-gray-700 mb-8">請輸入您的身分驗證碼</p>
+            <form id="login-form">
+                <input type="text" id="auth-code" class="glass-input w-full max-w-sm mx-auto text-center text-lg p-3 rounded-lg transition" placeholder="A1B2C3D4">
+                <button type="submit" class="action-button w-full max-w-sm mx-auto mt-6 font-bold py-3 px-6 rounded-lg transform hover:scale-105">
+                    登入
+                </button>
+            </form>
+        </div>
+
+        <!-- 評審評分畫面 -->
+        <div id="scoring-view" class="hidden">
+            <div class="glass-card p-6 sm:p-8 mb-6">
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800" id="welcome-message">載入中...</h1>
+                <p class="text-gray-700 mt-2">總分為各項直接加總。若輸入分數超過上限，將暫時無法儲存。</p>
+            </div>
+            <div id="teams-container" class="space-y-6"></div>
+        </div>
+
+        <!-- 管理員總覽畫面 -->
+        <div id="admin-view" class="hidden">
+             <div class="glass-card p-6 sm:p-8 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800" id="admin-welcome-message">管理員面板</h1>
+                    <p class="text-gray-700 mt-2">此為目前系統中的即時排名彙總。</p>
+                </div>
+                <button id="refresh-admin-view" class="action-button w-full sm:w-auto bg-indigo-600/70 border-indigo-500/20 font-bold py-2 px-5 rounded-lg transform hover:scale-105">
+                    重新整理
+                </button>
+            </div>
+            <div class="glass-card p-6 overflow-x-auto">
+                <table id="admin-summary-table" class="w-full text-left border-collapse min-w-full">
+                    <thead id="admin-summary-head"></thead>
+                    <tbody id="admin-summary-body"></tbody>
+                </table>
+                 <p id="admin-award-note" class="mt-4 text-red-800 font-semibold"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 載入動畫 -->
+    <div id="loader" class="hidden fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+        <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200/50 h-32 w-32"></div>
+    </div>
+
+    <!-- 提示訊息框 -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
+
+    <script>
+        // --- !!! 重要設定 !!! ---
+        // 請將此處的 URL 替換為您部署 Google Apps Script 後得到的網址
+        const GAS_WEB_APP_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+
+        // --- DOM 元素 ---
+        const loginView = document.getElementById('login-view');
+        const scoringView = document.getElementById('scoring-view');
+        const adminView = document.getElementById('admin-view');
+        const loginForm = document.getElementById('login-form');
+        const authCodeInput = document.getElementById('auth-code');
+        const welcomeMessage = document.getElementById('welcome-message');
+        const adminWelcomeMessage = document.getElementById('admin-welcome-message');
+        const teamsContainer = document.getElementById('teams-container');
+        const loader = document.getElementById('loader');
+        const toastContainer = document.getElementById('toast-container');
+        let currentUserName = '';
+        
+        // --- API 呼叫函式 ---
+        async function callGasApi(action, payload) {
+            const response = await fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS API 的特殊要求
+                body: JSON.stringify({ action, payload }),
+                redirect: 'follow' // 允許重新導向
+            });
+            return response.json();
+        }
+
+        // --- 事件監聽 ---
+        loginForm.addEventListener('submit', handleLogin);
+        teamsContainer.addEventListener('input', (e) => {
+            if (e.target.classList.contains('score-input')) {
+                const card = e.target.closest('.team-card');
+                validateAllScoresInCard(card, e.target, true);
+                updateCalculations();
+            }
+        });
+        teamsContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('save-btn')) handleSaveSingleTeam(e.target);
+        });
+        document.getElementById('refresh-admin-view')?.addEventListener('click', loadAdminData);
+
+        // --- 分數驗證 ---
+        function validateAllScoresInCard(card, activeInput, showToast) {
+            const saveButton = card.querySelector('.save-btn');
+            let isCardValid = true;
+            card.querySelectorAll('.score-input').forEach(input => {
+                const value = parseFloat(input.value), max = parseFloat(input.max);
+                if (!isNaN(value) && value > max) {
+                    input.classList.add('invalid-score');
+                    isCardValid = false;
+                    if (showToast && input === activeInput) {
+                        showToast(`${input.previousElementSibling.textContent.split('(')[0].trim()} 分數超過上限 ${max}`, 'error');
+                    }
+                } else {
+                    input.classList.remove('invalid-score');
+                }
+            });
+            saveButton.disabled = !isCardValid;
+            saveButton.textContent = isCardValid ? (saveButton.textContent.includes('✓') ? '已儲存 ✓' : '儲存此團隊') : '分數無效';
+            return isCardValid;
+        }
+
+        // --- 核心邏輯 ---
+        async function handleLogin(e) {
+            e.preventDefault();
+            const authCode = authCodeInput.value.trim();
+            if (!authCode) { showToast('請輸入驗證碼', 'error'); return; }
+            toggleLoader(true);
+            try {
+                const response = await callGasApi('authenticateUser', { authCode });
+                if (response.success) {
+                    currentUserName = response.userName;
+                    loginView.classList.add('hidden');
+                    if (response.role === 'admin') {
+                        adminView.classList.remove('hidden');
+                        adminWelcomeMessage.textContent = `您好，${currentUserName} (管理員)`;
+                        await loadAdminData();
+                    } else {
+                        scoringView.classList.remove('hidden');
+                        welcomeMessage.textContent = `您好，${currentUserName}。`;
+                        await loadScoringData();
+                    }
+                } else {
+                    showToast('驗證碼錯誤，請重新輸入', 'error');
+                    authCodeInput.focus();
+                }
+            } catch (error) { handleFailure(error); } finally { toggleLoader(false); }
+        }
+        
+        async function handleSaveSingleTeam(button) {
+            const card = button.closest('.team-card');
+            if (!validateAllScoresInCard(card, null, false)) {
+                showToast('分數有誤，無法儲存。請檢查紅色框內的欄位。', 'error');
+                return;
+            }
+            const teamName = card.dataset.teamName;
+            const scores = {
+                creativity: parseFloat(card.querySelector('input[name="creativity"]').value) || 0,
+                practicality: parseFloat(card.querySelector('input[name="practicality"]').value) || 0,
+                ai_ability: parseFloat(card.querySelector('input[name="ai_ability"]').value) || 0,
+                potential: parseFloat(card.querySelector('input[name="potential"]').value) || 0,
+                presentation: parseFloat(card.querySelector('input[name="presentation"]').value) || 0,
+            };
+            button.disabled = true;
+            button.textContent = '儲存中...';
+            try {
+                const response = await callGasApi('saveSingleTeamScore', { judgeName: currentUserName, teamName, scores });
+                if (response.success) {
+                    button.textContent = '已儲存 ✓';
+                    showToast(`${teamName} 的評分已儲存！`, 'success');
+                } else { throw new Error(response.message); }
+            } catch (error) {
+                handleFailure(error);
+                button.textContent = '儲存失敗';
+            } finally {
+                setTimeout(() => { button.disabled = false; button.textContent = '儲存此團隊'; }, 2000);
+            }
+        }
+        
+        async function loadScoringData() {
+            toggleLoader(true);
+            try {
+                const data = await callGasApi('getScoringData', { judgeName: currentUserName });
+                if (data.success) populateScoringForm(data); else throw new Error(data.message);
+            } catch (error) { handleFailure(error); } finally { toggleLoader(false); }
+        }
+        
+        async function loadAdminData() {
+            toggleLoader(true);
+            try {
+                const summary = await callGasApi('getAdminSummaryData', {});
+                if (summary.success) populateAdminView(summary); else throw new Error(summary.message);
+            } catch (error) { handleFailure(error); } finally { toggleLoader(false); }
+        }
+
+        // --- UI 渲染 ---
+        function populateScoringForm(data) {
+            teamsContainer.innerHTML = '';
+            welcomeMessage.textContent = data.isNew ? `您好，${currentUserName}。歡迎您首次登入。` : `您好，${currentUserName}。系統已載入您上次的評分紀錄。`;
+            data.teams.forEach(teamName => {
+                const card = createTeamCard(teamName, data.scores[teamName] || {});
+                teamsContainer.appendChild(card);
+                validateAllScoresInCard(card, null, false);
+            });
+            updateCalculations();
+        }
+
+        function populateAdminView(summary) {
+            const thead = document.getElementById('admin-summary-head');
+            const tbody = document.getElementById('admin-summary-body');
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+            const judgeHeaders = summary.judgeHeaders || [];
+            const headers = [{label: "最終排名", class: "text-center"}, {label: "團隊名稱", class: ""}, {label: "序位合計", class: "text-center"}, ...judgeHeaders.map(h => ({label: h, class: "text-center"}))];
+            thead.innerHTML = `<tr>${headers.map(h => `<th class="p-3 font-bold uppercase text-gray-600 border-b-2 border-white/20 ${h.class}">${h.label}</th>`).join('')}</tr>`;
+            if (!summary.results || summary.results.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${headers.length}" class="p-4 text-center text-gray-600">尚無任何評分資料可供彙總。</td></tr>`;
+                return;
+            }
+            summary.results.forEach(item => {
+                const row = document.createElement('tr');
+                const cells = [{label: "最終排名", value: item.finalRank, class: "text-center"}, {label: "團隊名稱", value: item.teamName, class: "font-semibold"}, {label: "序位合計", value: item.rankSum, class: "text-center"}, ...item.individualRanks.map((rank, i) => ({label: judgeHeaders[i], value: rank, class:"text-center text-sm"}))];
+                row.innerHTML = cells.map(cell => `<td data-label="${cell.label}" class="p-3 border-b border-white/10 text-gray-800 ${cell.class}">${cell.value}</td>`).join('');
+                tbody.appendChild(row);
+            });
+            document.getElementById('admin-award-note').textContent = summary.awardNote || '';
+        }
+
+        function updateCalculations() {
+            const teamScores = [];
+            document.querySelectorAll('.team-card').forEach(card => {
+                const totalScore = Array.from(card.querySelectorAll('.score-input')).reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+                card.querySelector('.total-score-display').textContent = totalScore.toFixed(0);
+                teamScores.push({ card, totalScore });
+            });
+            teamScores.sort((a, b) => b.totalScore - a.totalScore);
+            if (teamScores.length > 0) {
+                let rank = 1;
+                teamScores[0].card.querySelector('.rank-display').textContent = rank;
+                for (let i = 1; i < teamScores.length; i++) {
+                    if (teamScores[i].totalScore < teamScores[i - 1].totalScore) rank = i + 1;
+                    teamScores[i].card.querySelector('.rank-display').textContent = rank;
+                }
+            }
+        }
+        
+        function createTeamCard(teamName, scores) {
+            const card = document.createElement('div');
+            card.className = 'team-card glass-card p-6';
+            card.dataset.teamName = teamName;
+            const header = document.createElement('div');
+            header.className = 'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4';
+            header.innerHTML = `<h3 class="text-xl font-bold text-gray-800">${teamName}</h3><div class="text-right flex gap-4"><div class="font-semibold text-gray-700">總分: <span class="total-score-display text-blue-700 font-bold text-lg">0</span></div><div class="font-semibold text-gray-700">排序: <span class="rank-display text-red-700 font-bold text-lg">-</span></div></div>`;
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+            const scoreItems = [{ name: 'creativity', label: '創意與創新性', maxScore: 25, value: scores.creativity }, { name: 'practicality', label: '實用性與可行性', maxScore: 25, value: scores.practicality }, { name: 'ai_ability', label: '生成式AI工具運用能力', maxScore: 20, value: scores.ai_ability }, { name: 'potential', label: '預期效益與未來發展性', maxScore: 20, value: scores.potential }, { name: 'presentation', label: '簡報與答詢表現', maxScore: 10, value: scores.presentation }];
+            scoreItems.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex flex-col';
+                itemDiv.innerHTML = `<label for="${teamName}-${item.name}" class="text-sm font-medium text-gray-600 mb-1">${item.label} (上限 ${item.maxScore} 分)</label><input type="number" name="${item.name}" id="${teamName}-${item.name}" value="${item.value || ''}" min="0" max="${item.maxScore}" class="w-full p-2 rounded-md focus:outline-none glass-input score-input">`;
+                grid.appendChild(itemDiv);
+            });
+            const footer = document.createElement('div');
+            footer.className = 'mt-6 text-right';
+            footer.innerHTML = `<button class="save-btn action-button font-bold py-2 px-6 rounded-lg">儲存此團隊</button>`;
+            card.append(header, grid, footer);
+            return card;
+        }
+
+        // --- 通用輔助函式 ---
+        function handleFailure(error) { toggleLoader(false); console.error('發生錯誤:', error); showToast(`發生錯誤: ${error.message}`, 'error'); }
+        function toggleLoader(show) { loader.classList.toggle('hidden', !show); }
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'rgba(239, 68, 68, 0.8)' : 'rgba(34, 197, 94, 0.8)';
+            toast.className = 'toast p-4 rounded-lg shadow-lg';
+            toast.style.cssText = `-webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.2); background-color: ${bgColor};`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 4000);
+        }
+    </script>
+</body>
+</html>
