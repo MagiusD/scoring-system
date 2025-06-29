@@ -103,13 +103,43 @@
         
         // --- API 呼叫函式 ---
         async function callGasApi(action, payload) {
-            const response = await fetch(GAS_WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS API 的特殊要求
-                body: JSON.stringify({ action, payload }),
-                redirect: 'follow' // 允許重新導向
-            });
-            return response.json();
+            console.log(`發送 API 請求: ${action}`, payload); // 偵錯用
+    
+            try {
+                const response = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ action, payload }),
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+
+                console.log('回應狀態:', response.status, response.statusText); // 偵錯用
+
+                if (!response.ok) {
+                    throw new Error(`HTTP 錯誤! 狀態: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('API 回應:', data); // 偵錯用
+                return data;
+                
+            } catch (error) {
+                console.error('API 呼叫失敗:', error);
+        
+                // 根據不同的錯誤類型提供更詳細的訊息
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    throw new Error('網路連線問題，請檢查網路狀態');
+                } else if (error.message.includes('CORS')) {
+                    throw new Error('跨域請求被阻擋，請聯絡系統管理員');
+                } else if (error.message.includes('JSON')) {
+                    throw new Error('伺服器回應格式錯誤');
+                } else {
+                    throw error;
+                }
+            }
         }
 
         // --- 事件監聽 ---
@@ -306,6 +336,43 @@
             toastContainer.appendChild(toast);
             setTimeout(() => { toast.remove(); }, 4000);
         }
+
+        // --- 測試連線的函式 ---
+        async function testConnection() {
+            try {
+                console.log('測試連線到:', GAS_WEB_APP_URL);
+                
+                // 先測試 GET 請求
+                const getResponse = await fetch(GAS_WEB_APP_URL, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+        
+                console.log('GET 測試結果:', getResponse.status, getResponse.statusText);
+        
+                if (getResponse.ok) {
+                    const getData = await getResponse.json();
+                    console.log('GET 回應內容:', getData);
+                }
+        
+                return getResponse.ok;
+            } catch (error) {
+                console.error('連線測試失敗:', error);
+                return false;
+            }
+        }
+
+        // --- 在頁面載入時執行連線測試 ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('頁面載入完成，開始測試連線...');
+            const connected = await testConnection();
+            if (!connected) {
+                showToast('無法連接到伺服器，請檢查網路連線或聯絡系統管理員', 'error');
+            }
+        });
+
+        
     </script>
 </body>
 </html>
