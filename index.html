@@ -87,6 +87,46 @@
              text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
+        /* 排序切換開關樣式 */
+        .sort-toggle {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 9999px;
+            position: relative;
+            padding: 4px;
+            display: flex;
+            width: 180px;
+        }
+        .sort-toggle button {
+            flex: 1;
+            padding: 6px 0;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151; /* text-gray-700 */
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 10;
+            transition: color 0.3s ease-in-out;
+        }
+        .sort-toggle .glider {
+            position: absolute;
+            top: 4px;
+            height: calc(100% - 8px);
+            width: calc(50% - 4px);
+            background-color: #fff;
+            border-radius: 9999px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 5;
+        }
+        .sort-toggle button.active {
+            color: #1d4ed8; /* blue-700 */
+        }
+        .sort-toggle.avg .glider {
+             transform: translateX(calc(100% + 4px));
+        }
+
         /* RWD 響應式表格樣式 */
         @media (max-width: 768px) {
             #admin-summary-table thead {
@@ -154,14 +194,24 @@
 
         <!-- 管理員總覽畫面 -->
         <div id="admin-view" class="hidden">
-             <div class="glass-card p-6 sm:p-8 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div>
+             <div class="glass-card p-6 sm:p-8 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div class="flex-grow">
                     <h1 class="text-2xl sm:text-3xl font-bold text-gray-800" id="admin-welcome-message">管理員面板</h1>
-                    <p class="text-gray-700 mt-2">此為目前系統中的即時排名彙總。</p>
+                    <p class="text-gray-700 mt-2">此為即時排名彙總，預設依「序位合計」排序。</p>
                 </div>
-                <button id="refresh-admin-view" class="action-button w-full sm:w-auto bg-indigo-600/70 border-indigo-500/20 font-bold py-2 px-5 rounded-lg transform hover:scale-105">
-                    重新整理
-                </button>
+                <div class="flex flex-col items-center gap-4 sm:flex-row">
+                    <div id="sort-toggle-container" class="flex items-center space-x-2">
+                        <span class="text-gray-700 font-semibold text-sm">排序方式</span>
+                        <div id="sort-toggle" class="sort-toggle">
+                            <div class="glider"></div>
+                            <button id="sort-by-sum" class="active">序位合計</button>
+                            <button id="sort-by-avg">序位平均</button>
+                        </div>
+                    </div>
+                     <button id="refresh-admin-view" class="action-button w-full sm:w-auto bg-indigo-600/70 border-indigo-500/20 font-bold py-2 px-5 rounded-lg transform hover:scale-105">
+                        重新整理
+                    </button>
+                </div>
             </div>
             <div class="glass-card p-6 overflow-x-auto">
                 <table id="admin-summary-table" class="w-full text-left border-collapse min-w-full">
@@ -185,7 +235,7 @@
 
     <script>
         // --- 設定 ---
-        // !!! 重要: 部署的 Google Apps Script Web App URL !!!
+        // !!! 重要:部署的 Google Apps Script Web App URL !!!
         const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw5pHqeqbxJH1melxCFMU2rqVF8OKu3HYh1cim5Y0jxGP6Z1YjzQAiZSADmV90Du5h0/exec';
 
         // --- DOM 元素 ---
@@ -199,7 +249,12 @@
         const teamsContainer = document.getElementById('teams-container');
         const loader = document.getElementById('loader');
         const toastContainer = document.getElementById('toast-container');
+        const sortToggle = document.getElementById('sort-toggle');
+        const sortBySumBtn = document.getElementById('sort-by-sum');
+        const sortByAvgBtn = document.getElementById('sort-by-avg');
+        
         let currentUserName = '';
+        let currentSortBy = 'rankSum'; // 預設排序方式
 
         // --- API 呼叫輔助函式 ---
         async function callGasApi(action, payload) {
@@ -207,22 +262,17 @@
                 const response = await fetch(GAS_API_URL, {
                     method: 'POST',
                     mode: 'cors',
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8', // GAS Web App 接收 POST 請求的標準格式
-                    },
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action, payload }),
                     redirect: 'follow'
                 });
-                if (!response.ok) {
-                    throw new Error(`伺服器錯誤: ${response.status} ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`伺服器錯誤: ${response.status}`);
                 return await response.json();
             } catch (error) {
                 console.error(`呼叫 API '${action}' 失敗:`, error);
-                throw error; // 將錯誤向上拋出，讓呼叫者處理
+                throw error;
             }
         }
-
 
         // --- 事件監聽 ---
         loginForm.addEventListener('submit', handleLogin);
@@ -237,6 +287,19 @@
             if (e.target.classList.contains('save-btn')) handleSaveSingleTeam(e.target);
         });
         document.getElementById('refresh-admin-view')?.addEventListener('click', loadAdminData);
+
+        // 排序切換按鈕事件
+        sortBySumBtn.addEventListener('click', () => setSortBy('rankSum'));
+        sortByAvgBtn.addEventListener('click', () => setSortBy('rankAverage'));
+
+        function setSortBy(sortType) {
+            if (currentSortBy === sortType) return;
+            currentSortBy = sortType;
+            sortToggle.classList.toggle('avg', sortType === 'rankAverage');
+            sortBySumBtn.classList.toggle('active', sortType === 'rankSum');
+            sortByAvgBtn.classList.toggle('active', sortType === 'rankAverage');
+            loadAdminData();
+        }
 
         // --- 分數驗證 ---
         function validateAllScoresInCard(card, activeInput, showToast) {
@@ -282,7 +345,7 @@
                 if (response.role === 'admin') {
                     adminView.classList.remove('hidden');
                     adminWelcomeMessage.textContent = `您好，${currentUserName} (管理員)`;
-                    loadAdminData();
+                    setSortBy('rankSum'); // 初始化排序狀態並載入資料
                 } else {
                     scoringView.classList.remove('hidden');
                     welcomeMessage.textContent = `您好，${currentUserName}。`;
@@ -297,7 +360,7 @@
         async function handleSaveSingleTeam(button) {
             const card = button.closest('.team-card');
             if (!validateAllScoresInCard(card, null, false)) {
-                showToast('分數有誤，無法儲存。請檢查紅色框內的欄位。', 'error');
+                showToast('分數有誤，無法儲存。', 'error');
                 return;
             }
             const teamName = card.dataset.teamName;
@@ -349,7 +412,7 @@
         async function loadAdminData() {
             toggleLoader(true);
             try {
-                const response = await callGasApi('getAdminSummaryData', {});
+                const response = await callGasApi('getAdminSummaryData', { sortBy: currentSortBy });
                 populateAdminView(response);
             } catch (error) {
                 handleFailure(error);
@@ -360,9 +423,7 @@
 
         // --- UI 渲染 ---
         function populateScoringForm(data) {
-            if (!data.success) {
-                handleFailure(new Error(data.message)); return;
-            }
+            if (!data.success) { handleFailure(new Error(data.message)); return; }
             teamsContainer.innerHTML = '';
             welcomeMessage.textContent = data.isNew ? `您好，${currentUserName}。歡迎您首次登入。` : `您好，${currentUserName}。系統已載入您上次的評分紀錄。`;
             data.teams.forEach(teamName => {
@@ -374,23 +435,36 @@
         }
 
         function populateAdminView(summary) {
-             if (!summary.success) {
-                handleFailure(new Error(summary.message)); return;
-            }
+             if (!summary.success) { handleFailure(new Error(summary.message)); return; }
             const thead = document.getElementById('admin-summary-head');
             const tbody = document.getElementById('admin-summary-body');
             thead.innerHTML = '';
             tbody.innerHTML = '';
+            
             const judgeHeaders = summary.judgeHeaders || [];
-            const headers = [{label: "最終排名", class: "text-center"}, {label: "團隊名稱", class: ""}, {label: "序位合計", class: "text-center"}, ...judgeHeaders.map(h => ({label: h, class: "text-center"}))];
+            const headers = [
+                {label: "最終排名", class: "text-center"}, 
+                {label: "團隊名稱", class: ""}, 
+                {label: "序位合計", class: "text-center"},
+                {label: "序位平均", class: "text-center"}, 
+                ...judgeHeaders.map(h => ({label: h, class: "text-center"}))
+            ];
             thead.innerHTML = `<tr>${headers.map(h => `<th class="p-3 font-bold uppercase text-gray-600 border-b-2 border-white/20 ${h.class}">${h.label}</th>`).join('')}</tr>`;
+            
             if (!summary.results || summary.results.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="${headers.length}" class="p-4 text-center text-gray-600">尚無任何評分資料可供彙總。</td></tr>`;
                 return;
             }
+
             summary.results.forEach(item => {
                 const row = document.createElement('tr');
-                const cells = [{label: "最終排名", value: item.finalRank, class: "text-center"}, {label: "團隊名稱", value: item.teamName, class: "font-semibold"}, {label: "序位合計", value: item.rankSum, class: "text-center"}, ...item.individualRanks.map((rank, i) => ({label: judgeHeaders[i], value: rank, class:"text-center text-sm"}))];
+                const cells = [
+                    {label: "最終排名", value: item.finalRank, class: "text-center"}, 
+                    {label: "團隊名稱", value: item.teamName, class: "font-semibold"}, 
+                    {label: "序位合計", value: item.rankSum, class: "text-center"},
+                    {label: "序位平均", value: item.rankAverage.toFixed(2), class: "text-center"},
+                    ...item.individualRanks.map((rank, i) => ({label: judgeHeaders[i], value: rank, class:"text-center text-sm"}))
+                ];
                 row.innerHTML = cells.map(cell => `<td data-label="${cell.label}" class="p-3 border-b border-white/10 text-gray-800 ${cell.class}">${cell.value}</td>`).join('');
                 tbody.appendChild(row);
             });
@@ -424,7 +498,7 @@
             header.innerHTML = `<h3 class="text-xl font-bold text-gray-800">${teamName}</h3><div class="text-right flex gap-4"><div class="font-semibold text-gray-700">總分: <span class="total-score-display text-blue-700 font-bold text-lg">0</span></div><div class="font-semibold text-gray-700">排序: <span class="rank-display text-red-700 font-bold text-lg">-</span></div></div>`;
             const grid = document.createElement('div');
             grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
-            const scoreItems = [{ name: 'creativity', label: '創意與創新性', maxScore: 25, value: scores.creativity }, { name: 'practicality', label: '實用性與可行性', maxScore: 25, value: scores.practicality }, { name: 'ai_ability', label: '生成式AI工具運用能力', maxScore: 20, value: scores.ai_ability }, { name: 'potential', label: '預期效益與未來發展性', maxScore: 20, value: scores.potential }, { name: 'presentation', label: '簡報與答詢表現', maxScore: 10, value: scores.presentation }];
+            const scoreItems = [{ name: 'creativity', label: '創意與創新性', maxScore: 25, value: scores.creativity }, { name: 'practicality', label: '實用性與可行性', maxScore: 25, value: scores.practicality }, { name: 'ai_ability', label: '生成式AI工具運用能力', maxScore: 20, value: scores.ai_ability }, { name: 'potential', 'label': '預期效益與未來發展性', maxScore: 20, value: scores.potential }, { name: 'presentation', label: '簡報與答詢表現', maxScore: 10, value: scores.presentation }];
             scoreItems.forEach(item => {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'flex flex-col';
