@@ -199,7 +199,7 @@
                     <h1 class="text-2xl sm:text-3xl font-bold text-gray-800" id="admin-welcome-message">管理員面板</h1>
                     <p class="text-gray-700 mt-2">此為即時排名彙總，預設依「序位合計」排序。</p>
                 </div>
-                <div class="flex flex-col items-center gap-4 sm:flex-row">
+                <div class="flex flex-col items-center gap-4 sm:flex-row sm:flex-wrap justify-end">
                     <div id="sort-toggle-container" class="flex items-center space-x-2">
                         <span class="text-gray-700 font-semibold text-sm">排序方式</span>
                         <div id="sort-toggle" class="sort-toggle">
@@ -208,8 +208,15 @@
                             <button id="sort-by-avg">序位平均</button>
                         </div>
                     </div>
+                     <div id="auto-refresh-container" class="flex items-center space-x-2">
+                        <span class="text-gray-700 font-semibold text-sm">自動刷新</span>
+                        <label for="auto-refresh-toggle" class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="auto-refresh-toggle" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                        </label>
+                    </div>
                      <button id="refresh-admin-view" class="action-button w-full sm:w-auto bg-indigo-600/70 border-indigo-500/20 font-bold py-2 px-5 rounded-lg transform hover:scale-105">
-                        重新整理
+                        手動整理
                     </button>
                 </div>
             </div>
@@ -235,7 +242,7 @@
 
     <script>
         // --- 設定 ---
-        // !!! 重要:部署的 Google Apps Script Web App URL !!!
+        // !!! 重要: 部署的 Google Apps Script Web App URL !!!
         const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw5pHqeqbxJH1melxCFMU2rqVF8OKu3HYh1cim5Y0jxGP6Z1YjzQAiZSADmV90Du5h0/exec';
 
         // --- DOM 元素 ---
@@ -252,9 +259,12 @@
         const sortToggle = document.getElementById('sort-toggle');
         const sortBySumBtn = document.getElementById('sort-by-sum');
         const sortByAvgBtn = document.getElementById('sort-by-avg');
+        const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
         
+        // --- 狀態變數 ---
         let currentUserName = '';
         let currentSortBy = 'rankSum'; // 預設排序方式
+        let autoRefreshIntervalId = null; // 自動刷新計時器ID
 
         // --- API 呼叫輔助函式 ---
         async function callGasApi(action, payload) {
@@ -291,6 +301,24 @@
         // 排序切換按鈕事件
         sortBySumBtn.addEventListener('click', () => setSortBy('rankSum'));
         sortByAvgBtn.addEventListener('click', () => setSortBy('rankAverage'));
+        
+        // 自動刷新切換事件
+        autoRefreshToggle.addEventListener('change', handleAutoRefreshToggle);
+
+        function handleAutoRefreshToggle(e) {
+            if (e.target.checked) {
+                if (autoRefreshIntervalId) clearInterval(autoRefreshIntervalId);
+                loadAdminData(); // 開啟時立即刷新一次
+                autoRefreshIntervalId = setInterval(loadAdminData, 10000); // 每10秒刷新
+                showToast('已開啟每 10 秒自動刷新', 'success');
+            } else {
+                if (autoRefreshIntervalId) {
+                    clearInterval(autoRefreshIntervalId);
+                    autoRefreshIntervalId = null;
+                    showToast('已關閉自動刷新', 'info');
+                }
+            }
+        }
 
         function setSortBy(sortType) {
             if (currentSortBy === sortType) return;
@@ -339,6 +367,13 @@
         }
 
         function handleLoginSuccess(response) {
+             // 清理舊的狀態
+            if (autoRefreshIntervalId) {
+                clearInterval(autoRefreshIntervalId);
+                autoRefreshIntervalId = null;
+            }
+            autoRefreshToggle.checked = false;
+
             if (response.success) {
                 currentUserName = response.userName;
                 loginView.classList.add('hidden');
@@ -410,14 +445,16 @@
         }
         
         async function loadAdminData() {
-            toggleLoader(true);
+            // 自動刷新時，不顯示載入動畫，避免畫面閃爍
+            const showLoader = !autoRefreshIntervalId;
+            if(showLoader) toggleLoader(true);
             try {
                 const response = await callGasApi('getAdminSummaryData', { sortBy: currentSortBy });
                 populateAdminView(response);
             } catch (error) {
                 handleFailure(error);
             } finally {
-                toggleLoader(false);
+                if(showLoader) toggleLoader(false);
             }
         }
 
@@ -522,11 +559,13 @@
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
             const bgColor = type === 'error' ? 'rgba(239, 68, 68, 0.8)' : 'rgba(34, 197, 94, 0.8)';
+            const toastId = `toast-${Date.now()}`;
+            toast.id = toastId;
             toast.className = 'toast p-4 rounded-lg shadow-lg';
             toast.style.cssText = `-webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); border: 1px solid rgba(255,255,255,0.2); background-color: ${bgColor};`;
             toast.textContent = message;
             toastContainer.appendChild(toast);
-            setTimeout(() => { toast.remove(); }, 4000);
+            setTimeout(() => { document.getElementById(toastId)?.remove(); }, 4000);
         }
     </script>
 </body>
