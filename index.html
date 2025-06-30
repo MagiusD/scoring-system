@@ -127,8 +127,26 @@
              transform: translateX(calc(100% + 4px));
         }
 
-        /* RWD 響應式表格樣式 */
+        /* 表格固定欄位與滾動優化 */
+        #table-container {
+            width: 100%;
+            overflow-x: auto; /* 核心：允許水平滾動 */
+        }
+        #admin-summary-table {
+            min-width: 800px; /* 設定表格最小寬度，避免過度壓縮 */
+        }
+        #admin-summary-table th, #admin-summary-table td {
+             white-space: nowrap; /* 防止欄位內容換行 */
+        }
+
+        /* RWD 響應式表格樣式 (手機版) */
         @media (max-width: 768px) {
+            #table-container {
+                overflow-x: hidden; /* 手機版恢復預設行為 */
+            }
+             #admin-summary-table {
+                min-width: 100%; 
+            }
             #admin-summary-table thead {
                 display: none;
             }
@@ -149,6 +167,7 @@
                 padding-top: 0.75rem;
                 padding-bottom: 0.75rem;
                 border-bottom: 1px solid rgba(255,255,255,0.1);
+                white-space: normal; /* 手機版恢復自動換行 */
             }
             #admin-summary-table td:last-child {
                 border-bottom: 0;
@@ -187,7 +206,7 @@
         <div id="scoring-view" class="hidden">
             <div class="glass-card p-6 sm:p-8 mb-6">
                 <h1 class="text-2xl sm:text-3xl font-bold text-gray-800" id="welcome-message">載入中...</h1>
-                <p class="text-gray-700 mt-2">總分為各項直接加總。若輸入分數超過上限，將暫時無法儲存。</p>
+                <p class="text-gray-700 mt-2">驗證後請稍候3秒待系統讀取Google sheet資料。</p>
             </div>
             <div id="teams-container" class="space-y-6"></div>
         </div>
@@ -220,13 +239,15 @@
                     </button>
                 </div>
             </div>
-            <div class="glass-card p-6 overflow-x-auto">
-                <table id="admin-summary-table" class="w-full text-left border-collapse min-w-full">
-                    <thead id="admin-summary-head">
-                    </thead>
-                    <tbody id="admin-summary-body">
-                    </tbody>
-                </table>
+            <div class="glass-card p-6">
+                <div id="table-container">
+                    <table id="admin-summary-table" class="w-full text-left border-collapse">
+                        <thead id="admin-summary-head">
+                        </thead>
+                        <tbody id="admin-summary-body">
+                        </tbody>
+                    </table>
+                </div>
                  <p id="admin-award-note" class="mt-4 text-red-800 font-semibold"></p>
             </div>
         </div>
@@ -242,7 +263,7 @@
 
     <script>
         // --- 設定 ---
-        // !!! 重要: 部署的 Google Apps Script Web App URL !!!
+        // !!! 重要:  Google Apps Script Web App URL !!!
         const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw5pHqeqbxJH1melxCFMU2rqVF8OKu3HYh1cim5Y0jxGP6Z1YjzQAiZSADmV90Du5h0/exec';
 
         // --- DOM 元素 ---
