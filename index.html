@@ -127,17 +127,67 @@
              transform: translateX(calc(100% + 4px));
         }
 
-        /* 表格固定欄位與滾動優化 */
+        /* --- 橫向滾動與固定欄位 START --- */
         #table-container {
             width: 100%;
-            overflow-x: auto; /* 核心：允許水平滾動 */
+            overflow-x: auto; /* 允許水平滾動 */
         }
         #admin-summary-table {
-            min-width: 800px; /* 設定表格最小寬度，避免過度壓縮 */
+            min-width: 1000px; /* 設定表格最小寬度，以容納固定欄位和部分委員欄位 */
         }
-        #admin-summary-table th, #admin-summary-table td {
+        #admin-summary-table th, 
+        #admin-summary-table td {
              white-space: nowrap; /* 防止欄位內容換行 */
         }
+
+        /* 設定固定欄位 */
+        #admin-summary-table th:nth-child(-n+4),
+        #admin-summary-table td:nth-child(-n+4) {
+            position: -webkit-sticky;
+            position: sticky;
+            background: rgba(255, 255, 255, 0.35); /* 增加不透明度以遮擋下方內容 */
+            -webkit-backdrop-filter: blur(15px);
+            backdrop-filter: blur(15px);
+        }
+
+        /* 表頭 z-index 應高於表身，確保陰影等效果正確 */
+        #admin-summary-table thead th {
+            z-index: 20;
+        }
+        #admin-summary-table tbody td {
+            z-index: 10;
+        }
+
+        /* 依序設定每個固定欄位的 left 位置 */
+        #admin-summary-table th:nth-child(1), #admin-summary-table td:nth-child(1) { left: 0; min-width: 90px; }
+        #admin-summary-table th:nth-child(2), #admin-summary-table td:nth-child(2) { left: 90px; min-width: 150px; }
+        #admin-summary-table th:nth-child(3), #admin-summary-table td:nth-child(3) { left: 240px; min-width: 110px; }
+        #admin-summary-table th:nth-child(4), #admin-summary-table td:nth-child(4) { left: 350px; min-width: 110px; }
+        
+        /* 在最後一個固定欄位右側加上分隔線 */
+        #admin-summary-table th:nth-child(4), #admin-summary-table td:nth-child(4) {
+            border-right: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 美化捲動軸樣式 */
+        #table-container::-webkit-scrollbar {
+            height: 12px;
+        }
+        #table-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        #table-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 10px;
+            border: 3px solid transparent;
+            background-clip: content-box;
+        }
+        #table-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.6);
+        }
+        /* --- 橫向滾動與固定欄位 END --- */
+
 
         /* RWD 響應式表格樣式 (手機版) */
         @media (max-width: 768px) {
@@ -168,6 +218,11 @@
                 padding-bottom: 0.75rem;
                 border-bottom: 1px solid rgba(255,255,255,0.1);
                 white-space: normal; /* 手機版恢復自動換行 */
+                /* 在手機版重置固定欄位的樣式 */
+                position: static; 
+                left: auto;
+                min-width: auto;
+                border-right: none;
             }
             #admin-summary-table td:last-child {
                 border-bottom: 0;
@@ -263,7 +318,7 @@
 
     <script>
         // --- 設定 ---
-        // !!! 重要:  Google Apps Script Web App URL !!!
+        // !!! 重要: 請將此處替換為您部署的 Google Apps Script Web App 的 URL !!!
         const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw5pHqeqbxJH1melxCFMU2rqVF8OKu3HYh1cim5Y0jxGP6Z1YjzQAiZSADmV90Du5h0/exec';
 
         // --- DOM 元素 ---
