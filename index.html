@@ -4,29 +4,126 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>評分系統</title>
+    <!-- 引入 Tailwind CSS 以美化介面 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Inter', 'PingFang TC', '微軟正黑體', sans-serif; background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%); overflow-y: scroll; }
-        .glass-card { background: rgba(255, 255, 255, 0.25); -webkit-backdrop-filter: blur(15px); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.18); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2); border-radius: 1rem; }
-        .glass-input { background: rgba(255, 255, 255, 0.15) !important; -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); border: 1px solid rgba(255, 255, 255, 0.1) !important; color: #1f2937; }
-        .glass-input::placeholder { color: #6b7280; }
-        .glass-input:focus { background: rgba(255, 255, 255, 0.25) !important; box-shadow: 0 0 0 2px rgba(101, 166, 255, 0.5) !important; }
-        .action-button { background: rgba(101, 166, 255, 0.7); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid rgba(101, 166, 255, 0.2); color: #ffffff; transition: all 0.3s ease; }
-        .action-button:hover { background: rgba(101, 166, 255, 0.9); box-shadow: 0 4px 20px 0 rgba(101, 166, 255, 0.3); }
-        .save-btn:disabled { background: rgba(156, 163, 175, 0.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid rgba(156, 163, 175, 0.1); cursor: not-allowed; box-shadow: none; }
-        .loader { border-top-color: #ffffff; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .toast { animation: fadeInOut 4s ease-in-out; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-        @keyframes fadeInOut { 0%, 100% { opacity: 0; transform: translateY(-20px); } 10%, 90% { opacity: 1; transform: translateY(0); } }
-        .invalid-score { border-color: #ef4444 !important; box-shadow: 0 0 0 2px #ef4444 !important; }
-        h1, h3, p, label, th, td, button, span, div { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+        /* 自訂樣式，讓介面更精緻 */
+        body {
+            font-family: 'Inter', 'PingFang TC', '微軟正黑體', sans-serif;
+            background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+            overflow-y: scroll;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.25);
+            -webkit-backdrop-filter: blur(15px);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            border-radius: 1rem; /* 16px */
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.15) !important;
+            -webkit-backdrop-filter: blur(5px);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: #1f2937; /* text-gray-800 */
+        }
+        .glass-input::placeholder {
+            color: #6b7280; /* text-gray-500 */
+        }
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.25) !important;
+            box-shadow: 0 0 0 2px rgba(101, 166, 255, 0.5) !important;
+        }
+
+        .action-button {
+            background: rgba(101, 166, 255, 0.7);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(101, 166, 255, 0.2);
+            color: #ffffff;
+            transition: all 0.3s ease;
+        }
+        .action-button:hover {
+            background: rgba(101, 166, 255, 0.9);
+            box-shadow: 0 4px 20px 0 rgba(101, 166, 255, 0.3);
+        }
+        
+        .save-btn:disabled {
+            background: rgba(156, 163, 175, 0.5);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(156, 163, 175, 0.1);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .loader {
+            border-top-color: #ffffff;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .toast {
+            animation: fadeInOut 4s ease-in-out;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: translateY(-20px); }
+            10%, 90% { opacity: 1; transform: translateY(0); }
+        }
+        
+        .invalid-score {
+            border-color: #ef4444 !important; /* red-500 */
+            box-shadow: 0 0 0 2px #ef4444 !important;
+        }
+
+        /* 確保字體清晰度 */
+        h1, h3, p, label, th, td, button, span, div {
+             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* RWD 響應式表格樣式 */
         @media (max-width: 768px) {
-            #admin-summary-table thead { display: none; }
-            #admin-summary-table, #admin-summary-table tbody, #admin-summary-table tr, #admin-summary-table td { display: block; width: 100%; }
-            #admin-summary-table tr { margin-bottom: 1rem; border-radius: 1rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); }
-            #admin-summary-table td { padding-left: 50%; text-align: right; position: relative; padding-top: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
-            #admin-summary-table td:last-child { border-bottom: 0; }
-            #admin-summary-table td::before { content: attr(data-label); position: absolute; left: 0.75rem; width: 45%; padding-right: 0.5rem; white-space: nowrap; text-align: left; font-weight: bold; color: #374151; }
+            #admin-summary-table thead {
+                display: none;
+            }
+            #admin-summary-table, #admin-summary-table tbody, #admin-summary-table tr, #admin-summary-table td {
+                display: block;
+                width: 100%;
+            }
+            #admin-summary-table tr {
+                margin-bottom: 1rem;
+                border-radius: 1rem;
+                overflow: hidden;
+                border: 1px solid rgba(255,255,255,0.2);
+            }
+            #admin-summary-table td {
+                padding-left: 50%;
+                text-align: right;
+                position: relative;
+                padding-top: 0.75rem;
+                padding-bottom: 0.75rem;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+            #admin-summary-table td:last-child {
+                border-bottom: 0;
+            }
+            #admin-summary-table td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 0.75rem;
+                width: 45%;
+                padding-right: 0.5rem;
+                white-space: nowrap;
+                text-align: left;
+                font-weight: bold;
+                color: #374151; /* text-gray-700 */
+            }
         }
     </style>
 </head>
@@ -68,8 +165,10 @@
             </div>
             <div class="glass-card p-6 overflow-x-auto">
                 <table id="admin-summary-table" class="w-full text-left border-collapse min-w-full">
-                    <thead id="admin-summary-head"></thead>
-                    <tbody id="admin-summary-body"></tbody>
+                    <thead id="admin-summary-head">
+                    </thead>
+                    <tbody id="admin-summary-body">
+                    </tbody>
                 </table>
                  <p id="admin-award-note" class="mt-4 text-red-800 font-semibold"></p>
             </div>
@@ -85,8 +184,9 @@
     <div id="toast-container" class="fixed top-5 right-5 z-50 w-full max-w-xs sm:max-w-sm"></div>
 
     <script>
-        // --- !!! 重要設定 !!! ---
-        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyqxC4Gj08RwlwewbLzifiXZSRTaNhxf6zMgVl1Ecwa2VIvGwgocEMeK6mykFzw9eVU_A/exec';
+        // --- 設定 ---
+        // !!! 重要: 部署的 Google Apps Script Web App URL !!!
+        const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw5pHqeqbxJH1melxCFMU2rqVF8OKu3HYh1cim5Y0jxGP6Z1YjzQAiZSADmV90Du5h0/exec';
 
         // --- DOM 元素 ---
         const loginView = document.getElementById('login-view');
@@ -100,47 +200,29 @@
         const loader = document.getElementById('loader');
         const toastContainer = document.getElementById('toast-container');
         let currentUserName = '';
-        
-        // --- API 呼叫函式 ---
+
+        // --- API 呼叫輔助函式 ---
         async function callGasApi(action, payload) {
-            console.log(`發送 API 請求: ${action}`, payload); // 偵錯用
-    
             try {
-                const response = await fetch(GAS_WEB_APP_URL, {
+                const response = await fetch(GAS_API_URL, {
                     method: 'POST',
+                    mode: 'cors',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'text/plain;charset=utf-8', // GAS Web App 接收 POST 請求的標準格式
                     },
                     body: JSON.stringify({ action, payload }),
-                    mode: 'cors',
-                    credentials: 'omit'
+                    redirect: 'follow'
                 });
-
-                console.log('回應狀態:', response.status, response.statusText); // 偵錯用
-
                 if (!response.ok) {
-                    throw new Error(`HTTP 錯誤! 狀態: ${response.status} ${response.statusText}`);
+                    throw new Error(`伺服器錯誤: ${response.status} ${response.statusText}`);
                 }
-
-                const data = await response.json();
-                console.log('API 回應:', data); // 偵錯用
-                return data;
-                
+                return await response.json();
             } catch (error) {
-                console.error('API 呼叫失敗:', error);
-        
-                // 根據不同的錯誤類型提供更詳細的訊息
-                if (error.name === 'TypeError' && error.message.includes('fetch')) {
-                    throw new Error('網路連線問題，請檢查網路狀態');
-                } else if (error.message.includes('CORS')) {
-                    throw new Error('跨域請求被阻擋，請聯絡系統管理員');
-                } else if (error.message.includes('JSON')) {
-                    throw new Error('伺服器回應格式錯誤');
-                } else {
-                    throw error;
-                }
+                console.error(`呼叫 API '${action}' 失敗:`, error);
+                throw error; // 將錯誤向上拋出，讓呼叫者處理
             }
         }
+
 
         // --- 事件監聽 ---
         loginForm.addEventListener('submit', handleLogin);
@@ -176,7 +258,7 @@
             saveButton.textContent = isCardValid ? (saveButton.textContent.includes('✓') ? '已儲存 ✓' : '儲存此團隊') : '分數無效';
             return isCardValid;
         }
-
+        
         // --- 核心邏輯 ---
         async function handleLogin(e) {
             e.preventDefault();
@@ -185,23 +267,31 @@
             toggleLoader(true);
             try {
                 const response = await callGasApi('authenticateUser', { authCode });
-                if (response.success) {
-                    currentUserName = response.userName;
-                    loginView.classList.add('hidden');
-                    if (response.role === 'admin') {
-                        adminView.classList.remove('hidden');
-                        adminWelcomeMessage.textContent = `您好，${currentUserName} (管理員)`;
-                        await loadAdminData();
-                    } else {
-                        scoringView.classList.remove('hidden');
-                        welcomeMessage.textContent = `您好，${currentUserName}。`;
-                        await loadScoringData();
-                    }
+                handleLoginSuccess(response);
+            } catch (error) {
+                handleFailure(error);
+            } finally {
+                toggleLoader(false);
+            }
+        }
+
+        function handleLoginSuccess(response) {
+            if (response.success) {
+                currentUserName = response.userName;
+                loginView.classList.add('hidden');
+                if (response.role === 'admin') {
+                    adminView.classList.remove('hidden');
+                    adminWelcomeMessage.textContent = `您好，${currentUserName} (管理員)`;
+                    loadAdminData();
                 } else {
-                    showToast('驗證碼錯誤，請重新輸入', 'error');
-                    authCodeInput.focus();
+                    scoringView.classList.remove('hidden');
+                    welcomeMessage.textContent = `您好，${currentUserName}。`;
+                    loadScoringData();
                 }
-            } catch (error) { handleFailure(error); } finally { toggleLoader(false); }
+            } else {
+                showToast(response.message || '驗證碼錯誤，請重新輸入', 'error');
+                authCodeInput.focus();
+            }
         }
         
         async function handleSaveSingleTeam(button) {
@@ -220,38 +310,59 @@
             };
             button.disabled = true;
             button.textContent = '儲存中...';
+            
             try {
-                const response = await callGasApi('saveSingleTeamScore', { judgeName: currentUserName, teamName, scores });
-                if (response.success) {
-                    button.textContent = '已儲存 ✓';
-                    showToast(`${teamName} 的評分已儲存！`, 'success');
-                } else { throw new Error(response.message); }
+                const payload = { judgeName: currentUserName, teamName, scores };
+                const response = await callGasApi('saveSingleTeamScore', payload);
+                handleSaveSuccess(response, button, teamName);
             } catch (error) {
                 handleFailure(error);
+                button.disabled = false;
                 button.textContent = '儲存失敗';
-            } finally {
-                setTimeout(() => { button.disabled = false; button.textContent = '儲存此團隊'; }, 2000);
             }
         }
         
+        function handleSaveSuccess(response, button, teamName) {
+            button.disabled = false;
+            if (response.success) {
+                button.textContent = '已儲存 ✓';
+                showToast(`${teamName} 的評分已儲存！`, 'success');
+            } else {
+                handleFailure(new Error(response.message));
+                button.textContent = '儲存失敗';
+            }
+            setTimeout(() => { if (!button.disabled) { button.textContent = '儲存此團隊'; } }, 2000);
+        }
+
         async function loadScoringData() {
             toggleLoader(true);
             try {
-                const data = await callGasApi('getScoringData', { judgeName: currentUserName });
-                if (data.success) populateScoringForm(data); else throw new Error(data.message);
-            } catch (error) { handleFailure(error); } finally { toggleLoader(false); }
+                const response = await callGasApi('getScoringData', { judgeName: currentUserName });
+                populateScoringForm(response);
+            } catch (error) {
+                handleFailure(error);
+            } finally {
+                toggleLoader(false);
+            }
         }
         
         async function loadAdminData() {
             toggleLoader(true);
             try {
-                const summary = await callGasApi('getAdminSummaryData', {});
-                if (summary.success) populateAdminView(summary); else throw new Error(summary.message);
-            } catch (error) { handleFailure(error); } finally { toggleLoader(false); }
+                const response = await callGasApi('getAdminSummaryData', {});
+                populateAdminView(response);
+            } catch (error) {
+                handleFailure(error);
+            } finally {
+                toggleLoader(false);
+            }
         }
 
         // --- UI 渲染 ---
         function populateScoringForm(data) {
+            if (!data.success) {
+                handleFailure(new Error(data.message)); return;
+            }
             teamsContainer.innerHTML = '';
             welcomeMessage.textContent = data.isNew ? `您好，${currentUserName}。歡迎您首次登入。` : `您好，${currentUserName}。系統已載入您上次的評分紀錄。`;
             data.teams.forEach(teamName => {
@@ -263,6 +374,9 @@
         }
 
         function populateAdminView(summary) {
+             if (!summary.success) {
+                handleFailure(new Error(summary.message)); return;
+            }
             const thead = document.getElementById('admin-summary-head');
             const tbody = document.getElementById('admin-summary-body');
             thead.innerHTML = '';
@@ -325,7 +439,11 @@
         }
 
         // --- 通用輔助函式 ---
-        function handleFailure(error) { toggleLoader(false); console.error('發生錯誤:', error); showToast(`發生錯誤: ${error.message}`, 'error'); }
+        function handleFailure(error) { 
+            toggleLoader(false); 
+            console.error('發生錯誤:', error); 
+            showToast(`發生錯誤: ${error.message}`, 'error'); 
+        }
         function toggleLoader(show) { loader.classList.toggle('hidden', !show); }
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
@@ -336,43 +454,6 @@
             toastContainer.appendChild(toast);
             setTimeout(() => { toast.remove(); }, 4000);
         }
-
-        // --- 測試連線的函式 ---
-        async function testConnection() {
-            try {
-                console.log('測試連線到:', GAS_WEB_APP_URL);
-                
-                // 先測試 GET 請求
-                const getResponse = await fetch(GAS_WEB_APP_URL, {
-                    method: 'GET',
-                    mode: 'cors',
-                    credentials: 'omit'
-                });
-        
-                console.log('GET 測試結果:', getResponse.status, getResponse.statusText);
-        
-                if (getResponse.ok) {
-                    const getData = await getResponse.json();
-                    console.log('GET 回應內容:', getData);
-                }
-        
-                return getResponse.ok;
-            } catch (error) {
-                console.error('連線測試失敗:', error);
-                return false;
-            }
-        }
-
-        // --- 在頁面載入時執行連線測試 ---
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log('頁面載入完成，開始測試連線...');
-            const connected = await testConnection();
-            if (!connected) {
-                showToast('無法連接到伺服器，請檢查網路連線或聯絡系統管理員', 'error');
-            }
-        });
-
-        
     </script>
 </body>
 </html>
