@@ -145,7 +145,7 @@
         #admin-summary-table td:nth-child(-n+4) {
             position: -webkit-sticky;
             position: sticky;
-            background: rgba(255, 255, 255, 0.45); /* 增加不透明度以遮擋下方內容 */
+            background: rgba(235, 242, 255, 0.9); /* 使用高不透明度的淺藍色背景，防止文字透出 */
             -webkit-backdrop-filter: blur(15px);
             backdrop-filter: blur(15px);
         }
@@ -225,6 +225,7 @@
                 left: auto;
                 min-width: auto;
                 border-right: none;
+                background: transparent; /* 手機版恢復透明背景 */
             }
             #admin-summary-table td:last-child {
                 border-bottom: 0;
