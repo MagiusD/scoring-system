@@ -145,18 +145,20 @@
         #admin-summary-table td:nth-child(-n+4) {
             position: -webkit-sticky;
             position: sticky;
-            background: rgba(255, 255, 255, 0.35); /* 增加不透明度以遮擋下方內容 */
+            background: rgba(255, 255, 255, 0.45); /* 增加不透明度以遮擋下方內容 */
             -webkit-backdrop-filter: blur(15px);
             backdrop-filter: blur(15px);
         }
 
-        /* 表頭 z-index 應高於表身，確保陰影等效果正確 */
+        /* 設定堆疊順序 (z-index) 來解決重疊問題 */
         #admin-summary-table thead th {
-            z-index: 20;
+            z-index: 2; /* 表頭在最上層 */
         }
-        #admin-summary-table tbody td {
-            z-index: 10;
+        #admin-summary-table tbody td:nth-child(-n+4) {
+            z-index: 1; /* 固定的表身儲存格在中間層 */
         }
+        /* 非固定的儲存格會使用預設的 z-index: auto，位於最下層 */
+
 
         /* 依序設定每個固定欄位的 left 位置 */
         #admin-summary-table th:nth-child(1), #admin-summary-table td:nth-child(1) { left: 0; min-width: 90px; }
@@ -318,7 +320,7 @@
 
     <script>
         // --- 設定 ---
-        // !!! 重要: 請將此處替換為您部署的 Google Apps Script Web App 的 URL !!!
+        // !!! 重要: Google Apps Script Web App 的 URL !!!
         const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbw5pHqeqbxJH1melxCFMU2rqVF8OKu3HYh1cim5Y0jxGP6Z1YjzQAiZSADmV90Du5h0/exec';
 
         // --- DOM 元素 ---
